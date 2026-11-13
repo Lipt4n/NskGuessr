@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>НСК Гессер</title>
+<style>
+  :root {
+    --bg: #12131a;
+    --panel: #1c1e29;
+    --panel-2: #262938;
+    --text: #eef0f6;
+    --muted: #8d92a8;
+    --accent: #6c8cff;
+    --accent-2: #45d19a;
+    --warn: #ff6b6b;
+    --gold: #f5c451;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  button { font: inherit; cursor: pointer; border: 0; border-radius: 10px; padding: 10px 18px;
+    background: var(--panel-2); color: var(--text); transition: filter .15s, transform .05s; }
+  button:hover { filter: brightness(1.15); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: default; filter: none; }
+  button.primary { background: var(--accent); color: #fff; font-weight: 600; }
+  button.green { background: var(--accent-2); color: #0d1a14; font-weight: 700; }
+  button.ghost { background: transparent; color: var(--muted); }
+  input[type=text] { font: inherit; width: 100%; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid #343850; background: #14151d; color: var(--text); }
+  a { color: var(--accent); }
+  .screen { position: fixed; inset: 0; display: none; }
+  .screen.active { display: block; }
+  .center-wrap { height: 100%; overflow-y: auto; display: flex; justify-content: center; padding: 32px 16px; }
+  .card { background: var(--panel); border-radius: var(--radius); padding: 22px; }
+  .muted { color: var(--muted); }
+  h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: .5px; }
+  h1 span { color: var(--accent); }
+  h2 { margin: 0 0 12px; font-size: 17px; }
+
+  /* ---------- Меню ---------- */
+  .menu { width: 100%; max-width: 860px; display: grid; gap: 16px; grid-template-columns: 1fr 1fr; align-content: start; }
+  .menu > .head { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+  @media (max-width: 720px) { .menu { grid-template-columns: 1fr; } }
+  .rating-big { display: flex; align-items: center; gap: 16px; }
+  .rating-num { font-size: 46px; font-weight: 800; line-height: 1; }
+  .division { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
+  .stat { background: var(--panel-2); border-radius: 10px; padding: 10px; }
+  .stat b { display: block; font-size: 20px; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .opt { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; padding: 9px 0; border-bottom: 1px solid #2a2d3d; }
+  .opt:last-of-type { border-bottom: 0; }
+  .seg { display: inline-flex; background: #14151d; border-radius: 10px; padding: 3px; flex-wrap: wrap; }
+  .seg button { padding: 6px 10px; background: transparent; color: var(--muted); border-radius: 8px; font-size: 14px; }
+  .seg button.on { background: var(--panel-2); color: var(--text); }
+  .switch { position: relative; width: 44px; height: 24px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch span { position: absolute; inset: 0; background: #343850; border-radius: 999px; transition: .2s; cursor: pointer; }
+  .switch span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: .2s; }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  .start-btn { width: 100%; margin-top: 16px; padding: 14px; font-size: 18px; }
+  .history { grid-column: 1 / -1; }
+  .history table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .history td, .history th { padding: 7px 6px; text-align: left; border-bottom: 1px solid #2a2d3d; }
+  .history th { color: var(--muted); font-weight: 500; }
+  .plus { color: var(--accent-2); } .minus { color: var(--warn); }
+  .tag { font-size: 11px; background: var(--panel-2); color: var(--muted); padding: 1px 6px; border-radius: 6px; margin-right: 3px; white-space: nowrap; }
+
+  /* ---------- Игра ---------- */
+  #pano { position: absolute; inset: 0; background: #000; }
+  #pano-block { position: absolute; inset: 0; z-index: 5; display: none; cursor: not-allowed; }
+  .hud { position: absolute; z-index: 10; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: start; pointer-events: none; gap: 8px; }
+  .hud > * { pointer-events: auto; }
+  .pill { background: rgba(18,19,26,.85); backdrop-filter: blur(6px); padding: 8px 14px; border-radius: 12px; display: flex; gap: 16px; align-items: center; }
+  .pill small { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .pill b { font-size: 18px; }
+  #timer { font-size: 24px; font-variant-numeric: tabular-nums; font-weight: 700; min-width: 80px; text-align: center; }
+  #timer.warn { color: var(--warn); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  .left-tools { position: absolute; z-index: 10; left: 12px; bottom: 12px; display: flex; gap: 8px; }
+  .left-tools button { background: rgba(18,19,26,.85); }
+  #guess-wrap { position: absolute; z-index: 10; right: 12px; bottom: 12px; width: 300px; height: 250px;
+    display: flex; flex-direction: column; gap: 8px; transition: width .2s, height .2s; opacity: .8; }
+  #guess-wrap.expanded { width: min(680px, calc(100vw - 24px)); height: min(520px, calc(100vh - 100px)); opacity: 1; }
+  #guess-map { flex: 1; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+  #guess-btn { padding: 12px; font-size: 16px; }
+  #pin-btn { position: absolute; top: 6px; left: 6px; z-index: 3; padding: 4px 8px; font-size: 13px; background: rgba(18,19,26,.85); }
+  #pin-btn.on { background: var(--accent); }
+
+  /* ---------- Результат ---------- */
+  #result-map { position: absolute; inset: 0 0 230px 0; }
+  .result-panel { position: absolute; left: 0; right: 0; bottom: 0; height: 230px; background: var(--panel);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; text-align: center; }
+  .result-panel .line { font-size: 20px; }
+  .result-panel .big { font-size: 30px; font-weight: 800; }
+  .bar { width: min(520px, 90vw); height: 10px; background: #14151d; border-radius: 999px; overflow: hidden; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); width: 0; transition: width .8s ease-out; }
+  .rounds-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; font-size: 13px; }
+  .rounds-row div { background: var(--panel-2); border-radius: 8px; padding: 4px 10px; }
+  .row-btns { display: flex; gap: 10px; }
+
+  /* ---------- Редактор области ---------- */
+  #area-map { position: absolute; inset: 0; }
+  .area-bar { position: absolute; z-index: 10; top: 12px; left: 12px; right: 12px; display: flex; gap: 8px;
+    align-items: center; flex-wrap: wrap; background: rgba(18,19,26,.9); padding: 8px; border-radius: 12px; }
+  .area-bar button.on { background: var(--accent); }
+  .area-hint { position: absolute; z-index: 10; left: 50%; bottom: 20px; transform: translateX(-50%);
+    background: rgba(18,19,26,.9); padding: 8px 14px; border-radius: 10px; font-size: 14px; text-align: center; max-width: calc(100vw - 32px); }
+  .area-hint:empty { display: none; }
+  .icon-btn { padding: 6px 10px; font-size: 14px; }
+
+  /* ---------- Загрузка / оверлеи ---------- */
+  #loading { position: fixed; inset: 0; z-index: 100; background: rgba(10,10,15,.85); display: none;
+    align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
+  #loading.active { display: flex; }
+  .spinner { width: 42px; height: 42px; border: 4px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .key-card { max-width: 560px; width: 100%; align-self: center; }
+  .key-card ol { padding-left: 20px; color: var(--muted); }
+  .err { color: var(--warn); margin-top: 8px; min-height: 1.4em; }
+  kbd { background: var(--panel-2); border-radius: 5px; padding: 1px 6px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- Ключ API -->
+<div class="screen" id="screen-key">
+  <div class="center-wrap">
+    <div class="card key-card">
+      <h1>НСК<span>Гессер</span></h1>
+      <p class="muted">Для панорам нужен бесплатный ключ «JavaScript API и HTTP Геокодер» от Яндекса.</p>
+      <ol>
+        <li>Открой <a href="https://developer.tech.yandex.ru/services" target="_blank" rel="noopener">кабинет разработчика</a> и подключи «JavaScript API и HTTP Геокодер».</li>
+        <li>Скопируй ключ и вставь ниже (активация нового ключа иногда занимает до 15 минут).</li>
+      </ol>
+      <input type="text" id="key-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+      <div class="err" id="key-err"></div>
+      <div class="row-btns" style="margin-top:8px">
+        <button class="primary" id="key-save">Сохранить и загрузить</button>
+      </div>
+      <p class="muted" style="font-size:13px;margin-bottom:0">Ключ хранится только в localStorage этого браузера.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Меню -->
+<div class="screen" id="screen-menu">
+  <div class="center-wrap">
+    <div class="menu">
+      <div class="head">
+        <div>
+          <h1>НСК<span>Гессер</span></h1>
+          <div class="muted">Угадай, где в Новосибирске сделана панорама. 5 раундов, до 5000 очков за раунд.</div>
+        </div>
+        <button class="ghost" id="change-key">Сменить ключ API</button>
+      </div>
+
+      <div class="card">
+        <h2>Рейтинг</h2>
+        <div class="rating-big">
+          <div class="rating-num" id="m-rating">1000</div>
+          <div>
+            <div class="division" id="m-division">Серебро</div>
+            <div class="muted" style="font-size:13px;margin-top:4px" id="m-next"></div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="m-games">0</b><span>игр</span></div>
+          <div class="stat"><b id="m-best">—</b><span>лучший счёт</span></div>
+          <div class="stat"><b id="m-avg">—</b><span>средний (10 посл.)</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Настройки игры</h2>
+        <div class="opt"><span>Таймер на раунд</span>
+          <div class="seg" id="opt-timer">
+            <button data-v="0">Нет</button><button data-v="30">30с</button><button data-v="60">1м</button><button data-v="120">2м</button><button data-v="180">3м</button>
+          </div>
+        </div>
+        <div class="opt"><span>Область</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div class="seg" id="opt-area">
+              <button data-v="city">Весь город</button><button data-v="center">Центр</button><button data-v="custom">Своя</button>
+            </div>
+            <button class="icon-btn" id="edit-area-btn" title="Нарисовать свою область">✎</button>
+          </div>
+        </div>
+        <div class="opt"><span>Запретить перемещение</span>
+          <label class="switch"><input type="checkbox" id="opt-nomove"><span></span></label></div>
+        <div class="opt"><span>Запретить поворот и зум камеры</span>
+          <label class="switch"><input type="checkbox" id="opt-norotate"><span></span></label></div>
+        <button class="primary start-btn" id="start-btn">Играть</button>
+        <div class="muted" style="font-size:12px;margin-top:8px">Чем жёстче настройки, тем больше рейтинга за тот же счёт.
+          <kbd>Пробел</kbd> — угадать / дальше.</div>
+      </div>
+
+      <div class="card history">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2>Последние игры</h2>
+          <button class="ghost" id="reset-btn" style="font-size:13px">Сбросить статистику</button>
+        </div>
+        <div id="history"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Игра -->
+<div class="screen" id="screen-game">
+  <div id="pano"></div>
+  <div id="pano-block"></div>
+  <div class="hud">
+    <div class="pill">
+      <div><small>Раунд</small><b id="h-round">1/5</b></div>
+      <div><small>Счёт</small><b id="h-score">0</b></div>
+    </div>
+    <div class="pill" id="timer-pill"><div id="timer">1:00</div></div>
+    <div class="pill" style="font-size:13px" id="h-mode"></div>
+  </div>
+  <div class="left-tools">
+    <button id="exit-btn">✕ Выйти</button>
+    <button id="back-start-btn">↺ К старту</button>
+  </div>
+  <div id="guess-wrap">
+    <button id="pin-btn" title="Закрепить карту большой">📌</button>
+    <div id="guess-map"></div>
+    <button class="green" id="guess-btn" disabled>Поставь точку на карте</button>
+  </div>
+</div>
+
+<!-- Результат раунда / итог игры -->
+<div class="screen" id="screen-result">
+  <div id="result-map"></div>
+  <div class="result-panel" id="result-panel"></div>
+</div>
+
+<!-- Редактор своей области -->
+<div class="screen" id="screen-area">
+  <div id="area-map"></div>
+  <div class="area-bar">
+    <button id="area-rect">▭ Прямоугольник</button>
+    <button id="area-poly">✎ Фигура</button>
+    <button id="area-clear">Очистить</button>
+    <span class="muted" id="area-info"></span>
+    <span style="flex:1"></span>
+    <button id="area-cancel">Отмена</button>
+    <button class="primary" id="area-save">Сохранить</button>
+  </div>
+  <div class="area-hint" id="area-hint"></div>
+</div>
+
+<div id="loading"><div class="spinner"></div><div id="loading-text">Загрузка…</div></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Константы ----------
+  const ROUNDS = 5;
+  const MAX_ROUND = 5000;
+  const SCORE_SCALE_M = 3000;   // чем меньше, тем строже счёт
+  const PERFECT_M = 25;         // ближе этого — полные 5000
+  const LS_DATA = 'nskguessr.v1';
+  const LS_KEY = 'nskguessr.apikey';
+  const NSK_CENTER = [55.0302, 82.9204];
+  const MAP_LIMITS = [[54.70, 82.50], [55.30, 83.40]];
+
+  // Грубый контур городской черты Новосибирска [lat, lon]
+  const POLY_CITY = [
+    [55.125, 82.93], [55.135, 83.00], [55.115, 83.06], [55.085, 83.10], [55.060, 83.14],
+    [55.030, 83.13], [55.000, 83.12], [54.970, 83.13], [54.940, 83.11], [54.900, 83.11],
+    [54.870, 83.16], [54.835, 83.16], [54.810, 83.10], [54.820, 83.05], [54.855, 83.02],
+    [54.890, 83.04], [54.930, 83.00], [54.935, 82.92], [54.945, 82.86], [54.975, 82.78],
+    [55.000, 82.74], [55.030, 82.76], [55.055, 82.82], [55.085, 82.86], [55.110, 82.88],
+  ];
+  // Центр: Центральный, Железнодорожный, часть Заельцовского и Октябрьского
+  const POLY_CENTER = [
+    [55.065, 82.89], [55.065, 82.96], [55.040, 82.97], [55.015, 82.97],
+    [55.008, 82.93], [55.015, 82.89], [55.040, 82.88],
+  ];
+
+  const DIVISIONS = [
+    { min: -Infinity, name: 'Бронза',  color: '#c8834e' },
+    { min: 900,       name: 'Серебро', color: '#b9c3d6' },
+    { min: 1100,      name: 'Золото',  color: '#f5c451' },
+    { min: 1300,      name: 'Мастер',  color: '#b17cff' },
+    { min: 1500,      name: 'Чемпион', color: '#45d19a' },
+  ];
+
+  // ---------- Хранилище ----------
+  const defaults = () => ({
+    rating: 1000,
+    games: [],
+    settings: { timer: 0, area: 'city', noMove: false, noRotate: false, customPoly: null },
+  });
+  function loadData() {
+    try {
+      const d = JSON.parse(localStorage.getItem(LS_DATA));
+      if (d && typeof d.rating === 'number') return { ...defaults(), ...d, settings: { ...defaults().settings, ...d.settings } };
+    } catch (e) {}
+    return defaults();
+  }
+  function saveData() { try { localStorage.setItem(LS_DATA, JSON.stringify(data)); } catch (e) {} }
+  function getKey() { try { return localStorage.getItem(LS_KEY) || ''; } catch (e) { return ''; } }
+  function setKey(k) { try { localStorage.setItem(LS_KEY, k); } catch (e) {} }
+
+  let data = loadData();
+
+  // ---------- Утилиты ----------
+  const $ = (id) => document.getElementById(id);
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  }
+  function loading(text) {
+    $('loading').classList.toggle('active', !!text);
+    if (text) $('loading-text').textContent = text;
+  }
+  function haversine(a, b) {
+    const R = 6371008.8, r = Math.PI / 180;
+    const dLat = (b[0] - a[0]) * r, dLon = (b[1] - a[1]) * r;
+    const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  }
+  function fmtDist(m) {
+    if (m == null) return '—';
+    if (m < 1000) return Math.round(m) + ' м';
+    return (m / 1000).toFixed(m < 10000 ? 2 : 1).replace('.', ',') + ' км';
+  }
+  const fmtNum = (n) => n.toLocaleString('ru-RU');
+  function scoreFor(d) {
+    if (d == null) return 0;
+    if (d <= PERFECT_M) return MAX_ROUND;
+    return Math.round(MAX_ROUND * Math.exp(-(d - PERFECT_M) / SCORE_SCALE_M));
+  }
+  function pointInPoly(p, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [yi, xi] = poly[i], [yj, xj] = poly[j];
+      if ((yi > p[0]) !== (yj > p[0]) && p[1] < (xj - xi) * (p[0] - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  function randomInPoly(poly) {
+    const lats = poly.map(p => p[0]), lons = poly.map(p => p[1]);
+    const [a, b, c, d] = [Math.min(...lats), Math.max(...lats), Math.min(...lons), Math.max(...lons)];
+    for (;;) {
+      const p = [a + Math.random() * (b - a), c + Math.random() * (d - c)];
+      if (pointInPoly(p, poly)) return p;
+    }
+  }
+  // Площадь многоугольника [lat, lon] в км² (локальная плоская проекция — для города хватает)
+  function polyAreaKm2(poly) {
+    const r = Math.PI / 180, R = 6371.0088;
+    const lat0 = poly.reduce((s, p) => s + p[0], 0) / poly.length;
+    const k = Math.cos(lat0 * r);
+    let a = 0;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      a += (poly[j][1] * k) * poly[i][0] - (poly[i][1] * k) * poly[j][0];
+    }
+    return Math.abs(a / 2) * (R * r) ** 2;
+  }
+  const CITY_AREA = polyAreaKm2(POLY_CITY);
+  const fmtArea = (km2) => km2 < 10 ? km2.toFixed(1).replace('.', ',') : String(Math.round(km2));
+
+  function areaPoly(s) {
+    if (s.area === 'custom' && s.customPoly) return s.customPoly;
+    return s.area === 'center' ? POLY_CENTER : POLY_CITY;
+  }
+
+  function division(r) {
+    let d = DIVISIONS[0];
+    for (const x of DIVISIONS) if (r >= x.min) d = x;
+    return d;
+  }
+  function fmtTime(s) {
+    s = Math.max(0, Math.ceil(s));
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  }
+  function modeTags(s) {
+    const t = [];
+    t.push(s.area === 'custom' ? `Своя, ${fmtArea(s.customArea || 0)} км²` : s.area === 'center' ? 'Центр' : 'Весь город');
+    if (s.timer) t.push(fmtTime(s.timer));
+    if (s.noMove && s.noRotate) t.push('NMPZ');
+    else if (s.noMove) t.push('Без движения');
+    else if (s.noRotate) t.push('Без поворота');
+    return t;
+  }
+
+  // ---------- Рейтинг (Эло против «виртуального соперника») ----------
+  function difficulty(s) {
+    let d = 1200;
+    // Чем меньше область, тем проще угадать: ~+35 за каждое двукратное уменьшение (центр ≈ +150)
+    if (s.area === 'center') d += 150;
+    if (s.area === 'custom' && s.customArea > 0) d += Math.max(-100, Math.min(450, 35 * Math.log2(CITY_AREA / s.customArea)));
+    if (s.noMove) d -= 75;
+    if (s.noRotate) d -= 75;
+    if (s.timer && s.timer <= 30) d -= 75;
+    else if (s.timer && s.timer <= 60) d -= 40;
+    return d;
+  }
+  function ratingDelta(rating, total, s, gamesPlayed) {
+    const expected = 1 / (1 + Math.pow(10, (difficulty(s) - rating) / 600));
+    const actual = total / (MAX_ROUND * ROUNDS);
+    const K = gamesPlayed < 10 ? 80 : 40;   // калибровка первые 10 игр
+    return Math.round(K * (actual - expected));
+  }
+
+  // ---------- Меню ----------
+  function renderMenu() {
+    const r = data.rating, div = division(r);
+    $('m-rating').textContent = r;
+    $('m-division').textContent = div.name;
+    $('m-division').style.background = div.color;
+    $('m-division').style.color = '#111';
+    const next = DIVISIONS.find(x => x.min > r);
+    $('m-next').textContent = next ? `до «${next.name}»: ${next.min - r}` : 'Высший дивизион';
+    $('m-games').textContent = data.games.length;
+    const best = data.games.reduce((m, g) => Math.max(m, g.score), -1);
+    $('m-best').textContent = best >= 0 ? fmtNum(best) : '—';
+    const last = data.games.slice(-10);
+    $('m-avg').textContent = last.length ? fmtNum(Math.round(last.reduce((s, g) => s + g.score, 0) / last.length)) : '—';
+
+    const s = data.settings;
+    document.querySelectorAll('#opt-timer button').forEach(b => b.classList.toggle('on', +b.dataset.v === s.timer));
+    document.querySelectorAll('#opt-area button').forEach(b => b.classList.toggle('on', b.dataset.v === s.area));
+    $('opt-area').querySelector('[data-v=custom]').textContent =
+      s.customPoly ? `Своя (${fmtArea(polyAreaKm2(s.customPoly))} км²)` : 'Своя';
+    $('opt-nomove').checked = s.noMove;
+    $('opt-norotate').checked = s.noRotate;
+
+    const h = $('history');
+    if (!data.games.length) { h.innerHTML = '<div class="muted">Пока ни одной игры.</div>'; return; }
+    const rows = data.games.slice(-15).reverse().map(g => {
+      const d = new Date(g.date);
+      const delta = g.delta >= 0 ? `<span class="plus">+${g.delta}</span>` : `<span class="minus">${g.delta}</span>`;
+      return `<tr><td>${d.toLocaleDateString('ru-RU')} ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</td>
+        <td><b>${fmtNum(g.score)}</b></td><td>${modeTags(g.settings).map(t => `<span class="tag">${t}</span>`).join('')}</td>
+        <td>${g.ratingAfter} (${delta})</td></tr>`;
+    }).join('');
+    h.innerHTML = `<table><tr><th>Дата</th><th>Счёт</th><th>Режим</th><th>Рейтинг</th></tr>${rows}</table>`;
+  }
+
+  $('opt-timer').addEventListener('click', e => {
+    if (e.target.dataset.v == null) return;
+    data.settings.timer = +e.target.dataset.v; saveData(); renderMenu();
+  });
+  $('opt-area').addEventListener('click', e => {
+    const v = e.target.dataset.v;
+    if (v == null) return;
+    if (v === 'custom' && !data.settings.customPoly) { openAreaEditor(); return; }
+    data.settings.area = v; saveData(); renderMenu();
+  });
+  $('edit-area-btn').addEventListener('click', () => openAreaEditor());
+  $('opt-nomove').addEventListener('change', e => { data.settings.noMove = e.target.checked; saveData(); });
+  $('opt-norotate').addEventListener('change', e => { data.settings.noRotate = e.target.checked; saveData(); });
+  $('reset-btn').addEventListener('click', () => {
+    if (!confirm('Сбросить рейтинг и историю игр?')) return;
+    const s = data.settings; data = defaults(); data.settings = s; saveData(); renderMenu();
+  });
+  $('change-key').addEventListener('click', () => { $('key-input').value = getKey(); show('screen-key'); });
+
+  // ---------- Загрузка API ----------
+  // Модуль панорам API 2.1 не передаёт apikey в свои JSONP-запросы,
+  // а сервис панорам без него отвечает 400 «Missing apikey» — дописываем сами.
+  function patchPanoramaRequests(key) {
+    const desc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
+    if (!desc || desc.set.__nsk) return;
+    const set = function (v) {
+      try {
+        const u = String(v);
+        if (u.includes('api-maps.yandex.ru/services/') && !/[?&]apikey=/.test(u)) {
+          v = u + (u.includes('?') ? '&' : '?') + 'apikey=' + encodeURIComponent(key);
+        }
+      } catch (e) {}
+      desc.set.call(this, v);
+    };
+    set.__nsk = true;
+    Object.defineProperty(HTMLScriptElement.prototype, 'src', { ...desc, set });
+    const origSetAttr = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function (name, value) {
+      if (this instanceof HTMLScriptElement && String(name).toLowerCase() === 'src') { this.src = value; return; }
+      return origSetAttr.call(this, name, value);
+    };
+  }
+
+  function loadYmaps(key) {
+    patchPanoramaRequests(key);
+    return new Promise((resolve, reject) => {
+      if (window.ymaps) return window.ymaps.ready(resolve, reject);
+      const s = document.createElement('script');
+      s.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(key)}&lang=ru_RU`;
+      s.onerror = () => reject(new Error('Не удалось загрузить API Яндекс.Карт'));
+      s.onload = () => window.ymaps ? ymaps.ready(resolve, reject) : reject(new Error('API не инициализировалось'));
+      document.head.appendChild(s);
+    });
+  }
+
+  $('key-save').addEventListener('click', async () => {
+    const k = $('key-input').value.trim();
+    if (!k) { $('key-err').textContent = 'Вставь ключ'; return; }
+    const changed = k !== getKey();
+    setKey(k);
+    if (window.ymaps && changed) { location.reload(); return; }
+    await boot();
+  });
+  $('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') $('key-save').click(); });
+
+  let guessMap = null, resultMap = null;
+
+  async function boot() {
+    const key = getKey();
+    if (!key) { show('screen-key'); return; }
+    loading('Загружаю Яндекс.Карты…');
+    try {
+      await loadYmaps(key);
+      if (!ymaps.panorama || !ymaps.panorama.isSupported()) throw new Error('Браузер не поддерживает панорамы Яндекса');
+      initMaps();
+      // Проверка ключа: пробуем найти панораму в центре
+      await ymaps.panorama.locate(NSK_CENTER, { layer: 'yandex#panorama' });
+      loading(null);
+      renderMenu();
+      show('screen-menu');
+    } catch (e) {
+      // Достаём настоящий текст ошибки сервиса панорам
+      let detail = '';
+      try {
+        const r = await fetch('https://api-maps.yandex.ru/services/panoramas/1.x/?format=json&l=stv&lang=ru_RU&origin=locate'
+          + '&ll=' + NSK_CENTER[1] + ',' + NSK_CENTER[0] + '&apikey=' + encodeURIComponent(key));
+        detail = ` [HTTP ${r.status}: ${(await r.text()).slice(0, 300)}]`;
+      } catch (e2) {}
+      loading(null);
+      $('key-input').value = key;
+      $('key-err').textContent = 'Ошибка: ' + (e && e.message ? e.message : e) + detail;
+      show('screen-key');
+    }
+  }
+
+  function initMaps() {
+    if (guessMap) return;
+    guessMap = new ymaps.Map('guess-map', { center: NSK_CENTER, zoom: 11, controls: ['zoomControl'] }, {
+      suppressMapOpenBlock: true, restrictMapArea: MAP_LIMITS, autoFitToViewport: 'always', yandexMapDisablePoiInteractivity: true,
+    });
+    guessMap.events.add('click', e => placeGuess(e.get('coords')));
+
+    resultMap = new ymaps.Map('result-map', { center: NSK_CENTER, zoom: 11, controls: ['zoomControl'] }, {
+      suppressMapOpenBlock: true, autoFitToViewport: 'always',
+    });
+  }
+
+  // ---------- Редактор своей области ----------
+  const SHAPE_OPTS = { fillColor: '#6c8cff33', strokeColor: '#6c8cff', strokeWidth: 3, editorDrawingCursor: 'crosshair', editorMaxPoints: 200 };
+  let areaMap = null, areaShape = null, areaMode = null, rectStart = null, rectObj = null;
+
+  function openAreaEditor() {
+    show('screen-area');
+    if (!areaMap) {
+      areaMap = new ymaps.Map('area-map', { center: NSK_CENTER, zoom: 11, controls: ['zoomControl'] }, {
+        suppressMapOpenBlock: true, restrictMapArea: MAP_LIMITS, autoFitToViewport: 'always',
+      });
+      areaMap.events.add('mousedown', e => {
+        if (areaMode !== 'rect') return;
+        rectStart = e.get('coords');
+        clearShape();
+        rectObj = new ymaps.Rectangle([rectStart, rectStart], {}, SHAPE_OPTS);
+        areaMap.geoObjects.add(rectObj);
+      });
+      areaMap.events.add('mousemove', e => {
+        if (areaMode === 'rect' && rectStart && rectObj) rectObj.geometry.setCoordinates([rectStart, e.get('coords')]);
+      });
+      areaMap.events.add('mouseup', e => {
+        if (areaMode !== 'rect' || !rectStart) return;
+        const a = rectStart, b = e.get('coords');
+        rectStart = null;
+        if (rectObj) { areaMap.geoObjects.remove(rectObj); rectObj = null; }
+        if (Math.abs(a[0] - b[0]) < 1e-4 || Math.abs(a[1] - b[1]) < 1e-4) return;   // случайный клик
+        setShape([[a[0], a[1]], [a[0], b[1]], [b[0], b[1]], [b[0], a[1]]]);
+        setAreaMode(null);
+      });
+    }
+    areaMap.container.fitToViewport();
+    clearShape();
+    setAreaMode(null);
+    const saved = data.settings.customPoly;
+    if (saved) {
+      setShape(saved);
+      areaMap.setBounds(areaShape.geometry.getBounds(), { checkZoomRange: true, zoomMargin: 60 });
+    } else {
+      areaMap.setCenter(NSK_CENTER, 11);
+    }
+  }
+
+  function setShape(coords) {
+    clearShape();
+    areaShape = new ymaps.Polygon([coords], {}, SHAPE_OPTS);
+    areaMap.geoObjects.add(areaShape);
+    areaShape.geometry.events.add('change', updateAreaInfo);
+    areaShape.editor.startEditing();
+    updateAreaInfo();
+  }
+
+  function clearShape() {
+    if (areaShape) {
+      try { areaShape.editor.stopEditing(); areaShape.editor.stopDrawing(); } catch (e) {}
+      areaMap.geoObjects.remove(areaShape);
+      areaShape = null;
+    }
+    updateAreaInfo();
+  }
+
+  function shapeCoords() {
+    if (!areaShape) return null;
+    const pts = (areaShape.geometry.getCoordinates()[0] || []).map(p => [p[0], p[1]]);
+    const f = pts[0], l = pts[pts.length - 1];
+    if (pts.length > 1 && f[0] === l[0] && f[1] === l[1]) pts.pop();   // кольцо замкнуто дублем первой точки
+    return pts.length >= 3 ? pts : null;
+  }
+
+  function updateAreaInfo() {
+    const c = shapeCoords();
+    $('area-info').textContent = c ? `Площадь: ${fmtArea(polyAreaKm2(c))} км²` : 'Область не задана';
+  }
+
+  function setAreaMode(mode) {
+    areaMode = mode;
+    $('area-rect').classList.toggle('on', mode === 'rect');
+    $('area-poly').classList.toggle('on', mode === 'poly');
+    if (mode === 'rect') areaMap.behaviors.disable('drag'); else areaMap.behaviors.enable('drag');
+    $('area-hint').textContent =
+      mode === 'rect' ? 'Зажми кнопку мыши и протяни прямоугольник' :
+      mode === 'poly' ? 'Кликай по карте, ставя вершины. Готово — жми «Сохранить» (или кликни по последней точке → «Завершить»)' :
+      areaShape ? 'Вершины можно таскать, клик по вершине — удалить' : 'Выбери инструмент: прямоугольник или произвольная фигура';
+  }
+
+  $('area-rect').addEventListener('click', () => setAreaMode(areaMode === 'rect' ? null : 'rect'));
+  $('area-poly').addEventListener('click', () => {
+    clearShape();
+    areaShape = new ymaps.Polygon([[]], {}, SHAPE_OPTS);
+    areaMap.geoObjects.add(areaShape);
+    areaShape.geometry.events.add('change', updateAreaInfo);
+    areaShape.editor.startDrawing();
+    setAreaMode('poly');
+  });
+  $('area-clear').addEventListener('click', () => { clearShape(); setAreaMode(null); });
+  $('area-cancel').addEventListener('click', () => {
+    clearShape();
+    if (data.settings.area === 'custom' && !data.settings.customPoly) data.settings.area = 'city';
+    renderMenu(); show('screen-menu');
+  });
+  $('area-save').addEventListener('click', () => {
+    const c = shapeCoords();
+    if (!c) { alert('Нарисуй область: минимум 3 точки'); return; }
+    const km2 = polyAreaKm2(c);
+    if (km2 < 0.05) { alert('Область слишком маленькая — сделай хотя бы ~300×300 м'); return; }
+    data.settings.customPoly = c.map(p => [+p[0].toFixed(6), +p[1].toFixed(6)]);
+    data.settings.area = 'custom';
+    saveData();
+    clearShape();
+    renderMenu(); show('screen-menu');
+  });
+
+  // ---------- Поиск мест ----------
+  function panoLatLon(pano) {
+    const p = pano.getPosition();
+    // На всякий случай: если вдруг порядок [lon, lat]
+    return p[0] > 70 ? [p[1], p[0]] : [p[0], p[1]];
+  }
+  // Автомобильная панорама всегда стоит в цепочке вдоль дороги — у неё есть стрелки движения
+  // (Annotation.Thoroughfares). Снимки с телефонов и панорамы внутри зданий стоят особняком, без них.
+  function isCarPano(pano) {
+    try {
+      const md = pano.metadata;
+      if (!md) return true;
+      const arrows = md.get('Annotation.Thoroughfares', []);
+      if (!arrows || !arrows.length) return false;
+      const d = md.get('Data', {}) || {};
+      if (d.Author || d.author || (d.Point && (d.Point.Author || d.Point.author))) return false;
+      return true;
+    } catch (e) { return true; }
+  }
+
+  async function findLocation(poly, taken, minGap) {
+    for (let i = 0; i < 80; i++) {
+      const pt = randomInPoly(poly);
+      let panos;
+      try { panos = await ymaps.panorama.locate(pt, { layer: 'yandex#panorama' }); }
+      catch (e) { continue; }
+      const pano = (panos || []).find(isCarPano);
+      if (!pano) continue;
+      const ll = panoLatLon(pano);
+      if (!pointInPoly(ll, poly)) continue;
+      // В маленькой области 5 далёких друг от друга точек может не найтись — под конец ослабляем условие
+      if (i < 55 && taken.some(t => haversine(t, ll) < minGap)) continue;
+      taken.push(ll);
+      return { pano, ll };
+    }
+    throw new Error('Не нашёл панораму, попробуй ещё раз');
+  }
+
+  // ---------- Игра ----------
+  let game = null;
+  let player = null;
+  let guessMark = null;
+  let timerId = null;
+
+  async function startGame() {
+    const settings = { ...data.settings };
+    if (settings.area === 'custom' && !settings.customPoly) settings.area = 'city';
+    const poly = areaPoly(settings);
+    if (settings.area === 'custom') settings.customArea = polyAreaKm2(poly);
+    // Минимальное расстояние между точками раунда: ~1/12 «размера» области, от 100 м до 1,5 км
+    const minGap = Math.max(100, Math.min(1500, Math.sqrt(polyAreaKm2(poly)) * 1000 / 12));
+    const taken = [];
+    game = { settings, rounds: [], locs: [], idx: 0, total: 0 };
+    // Места ищем цепочкой: первое ждём, остальные догружаются в фоне
+    let chain = Promise.resolve();
+    for (let i = 0; i < ROUNDS; i++) {
+      chain = chain.then(() => findLocation(poly, taken, minGap));
+      game.locs.push(chain);
+      chain.catch(() => {});
+    }
+    await playRound(0);
+  }
+
+  // Глушим прямо в классе панорам Яндекса, чтобы действовало на все панорамы, включая соседние:
+  //  - getMarkers — номера домов (Annotation.Markers);
+  //  - getConnections / getConnectionMarkers — переходы внутрь зданий и на чужие панорамы (Annotation.Connections).
+  // Стрелки вдоль дороги (Thoroughfares) остаются — по ним можно ездить.
+  const STRIP_METHODS = ['getMarkers', 'getConnections', 'getConnectionMarkers'];
+  function stripPanoExtras(pano) {
+    for (let p = Object.getPrototypeOf(pano); p && p !== Object.prototype; p = Object.getPrototypeOf(p)) {
+      for (const m of STRIP_METHODS) {
+        if (Object.prototype.hasOwnProperty.call(p, m) && !p[m].__nsk) {
+          const empty = () => [];
+          empty.__nsk = true;
+          p[m] = empty;
+        }
+      }
+    }
+  }
+
+  // При запрете движения — обёртка без стрелок и переходов
+  function wrapPano(pano, noMove) {
+    if (!noMove) return pano;
+    const w = Object.create(pano);
+    w.getConnectionArrows = () => [];
+    w.getThoroughfares = () => [];
+    w.getConnectionMarkers = () => [];
+    w.getConnections = () => [];
+    return w;
+  }
+
+  function destroyPlayer() {
+    if (player) { try { player.destroy(); } catch (e) {} player = null; }
+    $('pano').innerHTML = '';
+  }
+
+  async function playRound(i) {
+    const myGame = game;
+    loading(`Ищу место для раунда ${i + 1}…`);
+    let loc;
+    try { loc = await game.locs[i]; }
+    catch (e) { loading(null); alert(e.message); toMenu(); return; }
+    if (game !== myGame) return;
+    loading(null);
+
+    game.idx = i;
+    const s = game.settings;
+    show('screen-game');
+    $('h-round').textContent = `${i + 1}/${ROUNDS}`;
+    $('h-score').textContent = fmtNum(game.total);
+    $('h-mode').innerHTML = modeTags(s).map(t => `<span>${t}</span>`).join(' · ');
+    $('pano-block').style.display = s.noRotate ? 'block' : 'none';
+    $('back-start-btn').style.display = s.noMove ? 'none' : '';
+
+    // Карта угадывания
+    if (guessMark) { guessMap.geoObjects.remove(guessMark); guessMark = null; }
+    guessMap.setCenter(NSK_CENTER, 11);
+    $('guess-btn').disabled = true;
+    $('guess-btn').textContent = 'Поставь точку на карте';
+    if (!$('pin-btn').classList.contains('on')) $('guess-wrap').classList.remove('expanded');
+
+    // Панорама
+    destroyPlayer();
+    stripPanoExtras(loc.pano);
+    const startPano = wrapPano(loc.pano, s.noMove);
+    game.startPano = startPano;
+    const opts = {
+      direction: [Math.random() * 360, 0],
+      controls: [],
+      suppressMapOpenBlock: true,
+      hotkeysEnabled: !s.noRotate,
+      scrollZoomBehavior: !s.noRotate,
+    };
+    try { player = new ymaps.panorama.Player('pano', startPano, opts); }
+    catch (e) { player = new ymaps.panorama.Player('pano', loc.pano, opts); }
+    player.events.add('panoramachange', () => {
+      if (s.noMove && player.getPanorama() !== startPano) player.setPanorama(startPano);
+    });
+    // Для отладки из консоли: nskPano() — сырые данные текущей панорамы
+    window.nskPano = () => { const m = player && player.getPanorama().metadata; return m && m.getAll(); };
+
+    // Таймер
+    clearInterval(timerId);
+    if (s.timer) {
+      $('timer-pill').style.display = '';
+      const deadline = Date.now() + s.timer * 1000;
+      const tick = () => {
+        const left = (deadline - Date.now()) / 1000;
+        $('timer').textContent = fmtTime(left);
+        $('timer').classList.toggle('warn', left <= 10);
+        if (left <= 0) { clearInterval(timerId); submitGuess(); }
+      };
+      tick();
+      timerId = setInterval(tick, 200);
+    } else {
+      $('timer-pill').style.display = 'none';
+    }
+    game.phase = 'guess';
+  }
+
+  function placeGuess(coords) {
+    if (!game || game.phase !== 'guess') return;
+    if (!guessMark) {
+      guessMark = new ymaps.Placemark(coords, {}, { preset: 'islands#blueCircleDotIcon', draggable: true });
+      guessMap.geoObjects.add(guessMark);
+    } else {
+      guessMark.geometry.setCoordinates(coords);
+    }
+    $('guess-btn').disabled = false;
+    $('guess-btn').textContent = 'Угадать';
+  }
+
+  async function submitGuess() {
+    if (!game || game.phase !== 'guess') return;
+    game.phase = 'result';
+    clearInterval(timerId);
+    const loc = await game.locs[game.idx];
+    const guess = guessMark ? guessMark.geometry.getCoordinates() : null;
+    const dist = guess ? haversine(guess, loc.ll) : null;
+    const score = scoreFor(dist);
+    game.total += score;
+    game.rounds.push({ guess, answer: loc.ll, dist, score });
+    destroyPlayer();
+    showRoundResult();
+  }
+
+  function drawPair(r, idx) {
+    const ans = new ymaps.Placemark(r.answer, { iconCaption: idx != null ? String(idx + 1) : '' },
+      { preset: 'islands#redDotIconWithCaption' });
+    resultMap.geoObjects.add(ans);
+    if (r.guess) {
+      resultMap.geoObjects.add(new ymaps.Placemark(r.guess, {}, { preset: 'islands#blueCircleDotIcon' }));
+      resultMap.geoObjects.add(new ymaps.Polyline([r.guess, r.answer], {},
+        { strokeColor: '#222222', strokeWidth: 3, strokeStyle: 'dash', strokeOpacity: .8 }));
+    }
+  }
+  function fitResult(points) {
+    if (points.length === 1) { resultMap.setCenter(points[0], 15); return; }
+    const lats = points.map(p => p[0]), lons = points.map(p => p[1]);
+    resultMap.setBounds([[Math.min(...lats), Math.min(...lons)], [Math.max(...lats), Math.max(...lons)]],
+      { checkZoomRange: true, zoomMargin: 50 }).then(() => {
+        if (resultMap.getZoom() > 17) resultMap.setZoom(17);
+      });
+  }
+
+  function showRoundResult() {
+    show('screen-result');
+    resultMap.container.fitToViewport();
+    resultMap.geoObjects.removeAll();
+    const r = game.rounds[game.rounds.length - 1];
+    drawPair(r);
+    fitResult(r.guess ? [r.guess, r.answer] : [r.answer]);
+
+    const last = game.rounds.length === ROUNDS;
+    $('result-panel').innerHTML = `
+      <div class="line">${r.guess ? `Ты промахнулся на <b>${fmtDist(r.dist)}</b>` : '<b>Время вышло</b> — точка не поставлена'}</div>
+      <div class="big">${fmtNum(r.score)} <span class="muted" style="font-size:18px">/ ${fmtNum(MAX_ROUND)}</span></div>
+      <div class="bar"><div id="bar"></div></div>
+      <div class="muted">Раунд ${game.rounds.length}/${ROUNDS} · Всего: ${fmtNum(game.total)}</div>
+      <button class="primary" id="next-btn">${last ? 'Итоги игры' : 'Следующий раунд'}</button>`;
+    requestAnimationFrame(() => requestAnimationFrame(() => { $('bar').style.width = (r.score / MAX_ROUND * 100) + '%'; }));
+    $('next-btn').onclick = next;
+    $('next-btn').focus();
+  }
+
+  function next() {
+    if (!game || game.phase !== 'result') return;
+    if (game.rounds.length < ROUNDS) playRound(game.idx + 1);
+    else finishGame();
+  }
+
+  function finishGame() {
+    game.phase = 'summary';
+    const s = game.settings;
+    const delta = ratingDelta(data.rating, game.total, s, data.games.length);
+    const before = data.rating;
+    data.rating = Math.max(0, data.rating + delta);
+    const { customPoly, ...histSettings } = s;   // контур в историю не пишем — раздувает localStorage
+    data.games.push({ date: Date.now(), score: game.total, settings: histSettings, delta, ratingAfter: data.rating,
+      rounds: game.rounds.map(r => ({ d: r.dist == null ? null : Math.round(r.dist), s: r.score })) });
+    if (data.games.length > 200) data.games = data.games.slice(-200);
+    saveData();
+
+    resultMap.geoObjects.removeAll();
+    const pts = [];
+    game.rounds.forEach((r, i) => { drawPair(r, i); pts.push(r.answer); if (r.guess) pts.push(r.guess); });
+    fitResult(pts);
+
+    const divBefore = division(before), divAfter = division(data.rating);
+    const divMsg = divAfter.name !== divBefore.name
+      ? `<div style="color:${divAfter.color};font-weight:700">Новый дивизион: ${divAfter.name}!</div>` : '';
+    const deltaHtml = delta >= 0 ? `<span class="plus">+${delta}</span>` : `<span class="minus">${delta}</span>`;
+    $('result-panel').innerHTML = `
+      <div class="big">${fmtNum(game.total)} <span class="muted" style="font-size:18px">/ ${fmtNum(MAX_ROUND * ROUNDS)}</span></div>
+      <div class="bar"><div id="bar"></div></div>
+      <div class="rounds-row">${game.rounds.map((r, i) => `<div>${i + 1}: <b>${fmtNum(r.score)}</b> · ${fmtDist(r.dist)}</div>`).join('')}</div>
+      <div>Рейтинг: ${before} → <b>${data.rating}</b> (${deltaHtml})</div>${divMsg}
+      <div class="row-btns"><button class="primary" id="again-btn">Ещё раз</button><button id="menu-btn">В меню</button></div>`;
+    requestAnimationFrame(() => requestAnimationFrame(() => { $('bar').style.width = (game.total / (MAX_ROUND * ROUNDS) * 100) + '%'; }));
+    $('again-btn').onclick = () => startGame();
+    $('menu-btn').onclick = toMenu;
+    $('again-btn').focus();
+  }
+
+  function toMenu() {
+    clearInterval(timerId);
+    destroyPlayer();
+    game = null;
+    loading(null);
+    renderMenu();
+    show('screen-menu');
+  }
+
+  // ---------- Управление ----------
+  $('start-btn').addEventListener('click', () => startGame());
+  $('guess-btn').addEventListener('click', submitGuess);
+  $('exit-btn').addEventListener('click', () => { if (confirm('Выйти? Игра не засчитается.')) toMenu(); });
+  $('back-start-btn').addEventListener('click', () => { if (player && game) player.setPanorama(game.startPano); });
+
+  const wrap = $('guess-wrap');
+  let collapseT = null;
+  wrap.addEventListener('mouseenter', () => { clearTimeout(collapseT); wrap.classList.add('expanded'); });
+  wrap.addEventListener('mouseleave', () => {
+    if ($('pin-btn').classList.contains('on')) return;
+    collapseT = setTimeout(() => wrap.classList.remove('expanded'), 500);
+  });
+  $('pin-btn').addEventListener('click', () => {
+    const on = $('pin-btn').classList.toggle('on');
+    wrap.classList.toggle('expanded', on || wrap.matches(':hover'));
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code !== 'Space' && e.code !== 'Enter') return;
+    if (!game) return;
+    if (game.phase === 'guess' && guessMark) { e.preventDefault(); submitGuess(); }
+    else if (game.phase === 'result') { e.preventDefault(); next(); }
+  });
+
+  boot();
+})();
+</script>
+</body>
+</html>
